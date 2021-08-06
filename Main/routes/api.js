@@ -1,78 +1,78 @@
-const router = require('express').Router();
-const Workout = require('../models/workout.js');
+const db = require("../models");
+const router = require("express").Router();
 
-router.post('/api/workouts', (req, res) => {
-  Workout.create({})
-    .then((dbWorkout) => {
-      res.json(dbWorkout);
-    })
-    .catch((err) => {
-      res.json(err);
+//commnet in to prepopulate database
+// db.Workout.find({}).then(function (res) {
+//     console.log("Checking if db is populated");
+//     if (res.length === 0) {
+//         console.log("DB is empty");
+//         require("./seeders/seed.js");
+//     }
+// });
+
+//get workouts
+router.get("/api/workouts", (req, res) => {
+
+    db.Workout.find({}).then(dbWorkout => {
+        // console.log("ALL WORKOUTS");
+        // console.log(dbWorkout);
+        dbWorkout.forEach(workout => {
+            var total = 0;
+            workout.exercises.forEach(e => {
+                total += e.duration;
+            });
+            workout.totalDuration = total;
+
+        });
+
+        res.json(dbWorkout);
+    }).catch(err => {
+        res.json(err);
     });
 });
 
-router.put('/api/workouts/:id', ({ body, params }, res) => {
-  Workout.findByIdAndUpdate(
-    params.id,
-    { $push: { exercises: body } },
-    // "runValidators" will ensure new exercises meet our schema requirements
-    { new: true, runValidators: true }
-  )
-    .then((dbWorkout) => {
-      res.json(dbWorkout);
-    })
-    .catch((err) => {
-      res.json(err);
-    });
-});
+// add exercise
+router.put("/api/workouts/:id", (req, res) => {
 
-router.get('/api/workouts', (req, res) => {
-  Workout.aggregate([
-    {
-      $addFields: {
-        totalDuration: {
-          $sum: '$exercises.duration',
+    db.Workout.findOneAndUpdate(
+        { _id: req.params.id },
+        {
+            $inc: { totalDuration: req.body.duration },
+            $push: { exercises: req.body }
         },
-      },
-    },
-  ])
-    .then((dbWorkouts) => {
-      res.json(dbWorkouts);
-    })
-    .catch((err) => {
-      res.json(err);
+        { new: true }).then(dbWorkout => {
+            res.json(dbWorkout);
+        }).catch(err => {
+            res.json(err);
+        });
+
+});
+
+//create workout
+router.post("/api/workouts", ({ body }, res) => {
+    // console.log("WORKOUT TO BE ADDED");
+    // console.log(body);
+
+    db.Workout.create(body).then((dbWorkout => {
+        res.json(dbWorkout);
+    })).catch(err => {
+        res.json(err);
     });
 });
 
-router.get('/api/workouts/range', (req, res) => {
-  Workout.aggregate([
-    {
-      $addFields: {
-        totalDuration: {
-          $sum: '$exercises.duration',
-        },
-      },
-    },
-  ])
-    .sort({ _id: -1 })
-    .limit(7)
-    .then((dbWorkouts) => {
-      console.log(dbWorkouts);
-      res.json(dbWorkouts);
-    })
-    .catch((err) => {
-      res.json(err);
+// get workouts in range
+router.get("/api/workouts/range", (req, res) => {
+
+    db.Workout.find({}).then(dbWorkout => {
+        console.log("ALL WORKOUTS");
+        console.log(dbWorkout);
+
+        res.json(dbWorkout);
+    }).catch(err => {
+        res.json(err);
     });
+
 });
 
-router.delete('/api/workouts', ({ body }, res) => {
-  Workout.findByIdAndDelete(body.id)
-    .then(() => {
-      res.json(true);
-    })
-    .catch((err) => {
-      res.json(err);
-    });
-});
 
 module.exports = router;
